@@ -205,72 +205,40 @@ index_data_raw = index_bar_list[167:]
 # future_data_raw = future_bar_list
 # index_data_raw = index_bar_list
 #%%
-t = 1
+t = 2
 # sig_pre_slicer = 120
 future_data_daily = future_data_raw[t]
-index_data_daily = index_data_raw[t]
-
-future_bars = future_data_daily[0]
-index_bars = index_data_daily[0].values
-
-df_future = future_data_daily[1]
-df_index = index_data_daily[1]
-
-def _get_start_price(price_df, start_price):       
-    if start_price == 'today_open':
-        return price_df['open'][1]
-    if start_price == 'yesterday_close':
-        return price_df['close'][0]
-
-future_list = [_get_start_price(df_future,'yesterday_close'),
-               _get_start_price(df_future,'today_open')]
-index_list = [_get_start_price(df_index,'yesterday_close'),
-               _get_start_price(df_index,'today_open')]
-time_list = ['y_cl','9:30']
-for _, bar in enumerate(future_bars):
-    time_list.append('{:d}:{:02d}'.format(bar[0].hour,bar[0].minute))
-
-for bar_f, bar_i in zip(future_bars, index_bars):
-    future_list.append(bar_f[4])
-    index_list.append(bar_i[4])
+# index_data_daily = index_data_raw[t]
+future_data_yesterday = future_data_raw[t-1]
+# index_data_yesterday = index_data_raw[t-1]
 
 
+future_bars_daily = future_data_daily[0]
+future_bars_yesterday = future_data_yesterday[0]
+future_arr = np.empty((480))
+time_list_y = []
+time_list_t = []
+for _, bar in enumerate(future_bars_daily):
+    time_list_y.append('y_{:d}:{:02d}'.format(bar[0].hour,bar[0].minute))
+    time_list_t.append('t_{:d}:{:02d}'.format(bar[0].hour,bar[0].minute))
+time_list = time_list_y + time_list_t
+for i, (bar_y, bar_t) in enumerate(zip(future_bars_yesterday, future_bars_daily)):
+    future_arr[i] = bar_y[4]
+    future_arr[i+240] = bar_t[4]
 
-    
-
-
-# for future_data_daily,index_data_daily in zip(future_data_raw,index_data_raw):
-#     future_volume.append(calc_daily_data(future_data_daily,index_data_daily)[0][0])
-#     open_interest.append(calc_daily_data(future_data_daily,index_data_daily)[0][1])
 #%%按指定频率采样
 retn_freq = 3
-start_price = 'yesterday_close'
-
-if start_price == 'yesterday_close':
-    future_list.pop(1)
-    time_list.pop(1)
-elif start_price == 'today_open':
-    future_list.pop(0)
-    time_list.pop(0)
-future_arr = np.array(future_list)
-# future_freq = np.array(future_list)[::retn_freq]#每间隔retn_freq取close price
-# future_retn = future_freq[1:] / future_freq[:-1] - 1 #计算间隔收益率,以结尾价格下标作为收益率下标
-
-future_retn = future_arr[retn_freq:] - future_arr[:-retn_freq]
-f_se = pd.Series(future_arr[retn_freq:],index=time_list[retn_freq:]) - pd.Series(future_arr[:-retn_freq],index=time_list[:-retn_freq])
+future_retn = future_arr[retn_freq:] / future_arr[:-retn_freq] - 1
 #%% 分别计算不同lag长度的MA，源数据频率不变
 import talib
 MA_windows = (3,5,10,15)
 future_MA_list = []
-index_MA_list = []
-
 for w in MA_windows:
-    future_MA_list.append(talib.MA(np.array(future_list), timeperiod=w))
-    index_MA_list.append(talib.MA(np.array(index_list), timeperiod=w))
+    future_MA_list.append(talib.MA(future_arr, timeperiod=w))
 
 future_MA_arr = np.array(future_MA_list).T
-index_MA_arr = np.array(index_MA_list).T
-
+total_arr_f = np.insert(future_MA_arr,[0],np.NaN, axis=1)
+total_arr_f[:-retn_freq,0] = future_retn
 #%% 上面那部分是取数据，下面是因子生成模块，对任何级别的数据都能够使用
 # sig_slicer = slice(0,122)#slicer和普通slice一样，多了y_close和t_open，所以+2
 # pre_slicer = slice(122,242)
@@ -298,12 +266,20 @@ def arr_rolling_window(arr, window, axis=0):
     return arr_rolling
 roll_windows =  arr_rolling_window(arr=future_MA_arr,window=3,axis=0)
 
+#%%
+
+window_arr = total_arr_f[220:260]
+Y = window_arr[:,0]
+X = window_arr.copy()
+X[:,0] = 1
 
 
+beta = np.dot(np.dot(np.linalg.inv(np.dot(X.T, X)),X.T),Y)
 
 
 
 # %%
-a = [1,2,3,4,5]
-a.pop(1)
-print(a)
+a = [[1,2,3,4,5],[1,2,3,4,5]]
+c = np.array(a)
+b = ['1','2']
+d = b.append([str(i) for i in [1,2,3]])
