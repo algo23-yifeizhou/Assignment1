@@ -228,6 +228,8 @@ for i, (bar_y, bar_t) in enumerate(zip(future_bars_yesterday, future_bars_daily)
 
 #%%按指定频率采样
 retn_freq = 3
+factor_window = 5
+
 future_retn = future_arr[retn_freq:] / future_arr[:-retn_freq] - 1
 #%% 分别计算不同lag长度的MA，源数据频率不变
 import talib
@@ -237,18 +239,20 @@ for w in MA_windows:
     future_MA_list.append(talib.MA(future_arr, timeperiod=w))
 
 future_MA_arr = np.array(future_MA_list).T
-total_arr_f = np.insert(future_MA_arr,[0],np.NaN, axis=1)
-total_arr_f[:-retn_freq,0] = future_retn
+raw_arr_f = np.insert(future_MA_arr,[0],np.NaN, axis=1)
+raw_arr_f[:-retn_freq,0] = future_retn
+
+total_arr_f = raw_arr_f[240-factor_window: -retn_freq]
+
 #%% 上面那部分是取数据，下面是因子生成模块，对任何级别的数据都能够使用
-# sig_slicer = slice(0,122)#slicer和普通slice一样，多了y_close和t_open，所以+2
-# pre_slicer = slice(122,242)
-# index_MA = pd.DataFrame(index_MA_arr,index=time_list)
-
-# pre_retn = future_MA_arr[pre_slicer,0][-1] / future_MA_arr[pre_slicer,0][0] - 1
-factor_window = 5
-retn_window = 3
+# 对每个滑窗进行多元OLS回归，返回系数贝塔
+def multi_OLS_beta(window_arr):
+    Y = window_arr[:,0]
+    X = window_arr.copy()
+    X[:,0] = 1
+    beta = np.dot(np.dot(np.linalg.inv(np.dot(X.T, X)),X.T),Y)
+    return beta
 # 引入numpy滑窗函数
-
 def arr_rolling_window(arr, window, axis=0):
     '''
     return 2D array of 滑窗array
@@ -266,20 +270,16 @@ def arr_rolling_window(arr, window, axis=0):
     return arr_rolling
 roll_windows =  arr_rolling_window(arr=future_MA_arr,window=3,axis=0)
 
-#%%
+beta_list = []
+for i, window_arr in enumerate(arr_rolling_window(arr=total_arr_f,window=factor_window,axis=0)):
+    beta_list.append(multi_OLS_beta(window_arr)[1:]) 
+ 
+beta = np.array(beta_list[-4:])
 
-window_arr = total_arr_f[220:260]
-Y = window_arr[:,0]
-X = window_arr.copy()
-X[:,0] = 1
+factor_value = np.dot(np.dot(1/4 * np.ones(4), beta), future_MA_arr[240].T)
 
 
-beta = np.dot(np.dot(np.linalg.inv(np.dot(X.T, X)),X.T),Y)
 
 
 
 # %%
-a = [[1,2,3,4,5],[1,2,3,4,5]]
-c = np.array(a)
-b = ['1','2']
-d = b.append([str(i) for i in [1,2,3]])
