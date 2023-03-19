@@ -226,14 +226,13 @@ for i, (bar_y, bar_t) in enumerate(zip(future_bars_yesterday, future_bars_daily)
     future_arr[i] = bar_y[4]
     future_arr[i+240] = bar_t[4]
 
-#%%按指定频率采样
+#%%收益率频率
 retn_freq = 3
-factor_window = 5
-
 future_retn = future_arr[retn_freq:] / future_arr[:-retn_freq] - 1
 #%% 分别计算不同lag长度的MA，源数据频率不变
 import talib
 MA_windows = (3,5,10,15)
+MA_number = len(MA_windows) #有几种MA 的lag
 future_MA_list = []
 for w in MA_windows:
     future_MA_list.append(talib.MA(future_arr, timeperiod=w))
@@ -241,8 +240,6 @@ for w in MA_windows:
 future_MA_arr = np.array(future_MA_list).T
 raw_arr_f = np.insert(future_MA_arr,[0],np.NaN, axis=1)
 raw_arr_f[:-retn_freq,0] = future_retn
-
-total_arr_f = raw_arr_f[240-factor_window: -retn_freq]
 
 #%% 上面那部分是取数据，下面是因子生成模块，对任何级别的数据都能够使用
 # 对每个滑窗进行多元OLS回归，返回系数贝塔
@@ -268,18 +265,32 @@ def arr_rolling_window(arr, window, axis=0):
         strides = (arr.strides[-1],) + arr.strides
         arr_rolling = np.lib.stride_tricks.as_strided(arr,shape=shape,strides=strides)
     return arr_rolling
-roll_windows =  arr_rolling_window(arr=future_MA_arr,window=3,axis=0)
 
-beta_list = []
-for i, window_arr in enumerate(arr_rolling_window(arr=total_arr_f,window=factor_window,axis=0)):
-    beta_list.append(multi_OLS_beta(window_arr)[1:]) 
+#%%
+# roll_windows =  arr_rolling_window(arr=future_MA_arr,window=3,axis=0)
+
+# beta_list = []
+# for i, window_arr in enumerate(arr_rolling_window(arr=total_arr_f,window=factor_window,axis=0)):
+#     beta_list.append(multi_OLS_beta(window_arr)[1:]) 
  
-beta = np.array(beta_list[-4:])
+# beta = np.array(beta_list[-4:])
 
-factor_value = np.dot(np.dot(1/4 * np.ones(4), beta), future_MA_arr[240].T)
+# factor_value = np.dot(np.dot(1/4 * np.ones(4), beta), future_MA_arr[240].T)
 
+#%%
 
-
-
-
+beta_OLS_window = 10
+beta_expectation_window = 5
+beta_sample_window = beta_OLS_window + beta_expectation_window - 1
+sample_lenth = beta_sample_window + MA_number
+facotr_list = []
+for t, MA_vector in enumerate(raw_arr_f[240:, 1:]):
+    raw_sample = raw_arr_f[240+t-sample_lenth:240+t+1]
+    beta_list = []
+    for _, window_arr in enumerate(arr_rolling_window(arr=raw_sample,window=beta_OLS_window,axis=0)):
+        beta_list.append(multi_OLS_beta(window_arr)[1:])
+    beta_arr = np.array(beta_list)
+    factor_value = np.dot(np.dot(1/beta_expectation_window * np.ones(MA_number), beta_arr[-beta_expectation_window:]), MA_vector.T)
+    factor_list.append(factor_value)
+    
 # %%
