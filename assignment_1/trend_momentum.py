@@ -246,7 +246,7 @@ index_data_raw = index_bar_list[167:]
 # future_data_raw = future_bar_list
 # index_data_raw = index_bar_list
 #%% 日内检测，注：部分天OLS存在多重共线性，待解决
-t = 5
+t = 100
 # sig_pre_slicer = 120
 future_data_daily = future_data_raw[t]
 # index_data_daily = index_data_raw[t]
@@ -268,11 +268,11 @@ for i, (bar_y, bar_t) in enumerate(zip(future_bars_yesterday, future_bars_daily)
     future_arr[i+240] = bar_t[4]
 
 #收益率频率
-retn_freq = 5
+retn_freq = 3
 future_retn = future_arr[retn_freq:] / future_arr[:-retn_freq] - 1
 #分别计算不同lag长度的MA，源数据频率不变
 import talib
-MA_windows = (3,5,10,15)
+MA_windows = (5,10,15,30)
 MA_number = len(MA_windows) #有几种MA 的lag
 future_MA_list = []
 for w in MA_windows:
@@ -282,14 +282,18 @@ future_MA_arr = np.array(future_MA_list).T
 raw_arr_f = np.insert(future_MA_arr,[0],np.NaN, axis=1)
 raw_arr_f[:-retn_freq,0] = future_retn
 
-#%% 上面那部分是取数据，下面是因子生成模块，对任何级别的数据都能够使用
+# 上面那部分是取数据，下面是因子生成模块，对任何级别的数据都能够使用
 # 对每个滑窗进行多元OLS回归，返回系数贝塔
 def multi_OLS_beta(window_arr):
     Y = window_arr[:,0]
     X = window_arr.copy()
     X[:,0] = 1
-    beta = np.dot(np.dot(np.linalg.inv(np.dot(X.T, X)),X.T),Y)
-    return beta
+    # 优先判断是否存在奇异矩阵，一般存在奇异矩阵的原因是当前存在涨停，导致MA值未发生变化，与第一列1共线
+    if np.linalg.det(np.dot(X.T, X)) != 0:
+        beta = np.dot(np.dot(np.linalg.inv(np.dot(X.T, X)),X.T),Y)
+    else:
+        beta = np.zeros(window_arr.shape[1])
+    return beta[1:] #常数项beta不要
 # 引入numpy滑窗函数
 def arr_rolling_window(arr, window, axis=0):
     '''
@@ -307,8 +311,8 @@ def arr_rolling_window(arr, window, axis=0):
         arr_rolling = np.lib.stride_tricks.as_strided(arr,shape=shape,strides=strides)
     return arr_rolling
 
-beta_OLS_window = 10
-beta_expectation_window = 3
+beta_OLS_window = 30
+beta_expectation_window = 10
 beta_sample_window = beta_OLS_window + beta_expectation_window - 1
 sample_lenth = beta_sample_window + MA_number
 
@@ -317,7 +321,7 @@ for t, MA_vector in enumerate(raw_arr_f[240:, 1:]):
     raw_sample = raw_arr_f[240+t-sample_lenth:240+t+1]
     beta_list = []
     for _, window_arr in enumerate(arr_rolling_window(arr=raw_sample,window=beta_OLS_window,axis=0)):
-        beta_list.append(multi_OLS_beta(window_arr)[1:])
+        beta_list.append(multi_OLS_beta(window_arr))
     beta_arr = np.array(beta_list)
     factor_value =1/beta_expectation_window *  np.dot(np.dot(np.ones(beta_expectation_window), beta_arr[-beta_expectation_window:]), MA_vector.T)
     factor_list.append(factor_value)
