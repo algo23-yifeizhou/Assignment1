@@ -9,7 +9,8 @@ The original research included all domestic common stocks listed on the NYSE, AM
 ### About the strategy:
 I used the intraday 1-min stock index future bar to construct this trend factor. The main parameters are moving windows when calculate the OLS betas and target returns period length.
 
-phased outcomes:
+### phased outcomes:
+
 ![image](https://user-images.githubusercontent.com/125112527/226239910-6f78f7e2-deaa-4fdc-b519-13bc5f195da6.png)
 
 then I will extend the one-day intraday strategy to days intraday strategy and try to use the factor in a fixed time zone during an intraday trading period
