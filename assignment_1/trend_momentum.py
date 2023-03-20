@@ -135,10 +135,51 @@ def Indicators(value):
     data=[[TotalRetn,AnnualRetn,Volatility,SharpRatio,MaxDrawback,Wr,Plr,MaxDrawbackDays,KMRatio,Max2]]
     result=pd.DataFrame(columns=columns,data=data)
     return result
-#%%
-# 
-# df = pd.read_csv('IH_data.csv')
-# df.loc[:,df.columns.str.startswith('0_')]
+#%% plot the net value curve
+def net_value(returns, benchmark=None,commission=0.0000):
+    dates = returns.index
+    net_value_se = pd.Series(((1-commission)*(1 + returns.values)).cumprod(),index=dates,name='intraday')
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    plt.style.use('seaborn-white')
+    fig = plt.figure(figsize=(16,9))
+    ax1 = plt.axes()
+    ax1.set_xlabel('date')
+    ax1.set_ylabel('net_value')
+    ax1.set_title(net_value_se.name + '  Net Value')
+    # 净值曲线
+    ax1.plot(net_value_se,linestyle='-',label='Net value')
+    # jis
+    graph_bottom = plt.ylim()[0]
+    graph_top = plt.ylim()[1]
+    graph_height = graph_top - graph_bottom
+    
+    indi = Indicators(net_value_se)
+    indi =indi.rename(index={0:net_value_se.name})
+    if benchmark is not None:
+
+        # benchmark净值曲线
+        ax1.plot(benchmark_net_value,linestyle='-.',color='grey',label=bench_code)
+        raph_bottom = plt.ylim()[0]
+        graph_top = plt.ylim()[1]
+        graph_height = graph_top - graph_bottom
+    # 超额收益曲线
+        excess = net_value_se.pct_change().dropna() - benchmark_net_value.pct_change().dropna()
+        ax1.bar(x=excess.index,height=(0.2*graph_height/excess.min())*excess.values,bottom=1,color='orange',label='Excess return rate')
+        indi_benchmark = Indicators(benchmark_net_value)
+        indi_benchmark =indi_benchmark.rename(index={0:bench_code})
+        indi = indi.append(indi_benchmark)
+    #日亏损
+    rt = net_value_se.pct_change().dropna()
+    rt[rt>0]=0
+    drawdown_se = rt
+    ax1.bar(x=drawdown_se.index,height=(-0.2*graph_height/rt.min())*drawdown_se.values,bottom=graph_top,color='silver',label='Drawdown')
+    
+    
+    plt.legend()
+    plt.show()
+
+    return indi
 
 #%%#########获取bar数据############
 ##########################################期货标的################################################
@@ -204,8 +245,8 @@ index_data_raw = index_bar_list[167:]
 
 # future_data_raw = future_bar_list
 # index_data_raw = index_bar_list
-#%%
-t = 2
+#%% 日内检测，注：部分天OLS存在多重共线性，待解决
+t = 5
 # sig_pre_slicer = 120
 future_data_daily = future_data_raw[t]
 # index_data_daily = index_data_raw[t]
@@ -226,10 +267,10 @@ for i, (bar_y, bar_t) in enumerate(zip(future_bars_yesterday, future_bars_daily)
     future_arr[i] = bar_y[4]
     future_arr[i+240] = bar_t[4]
 
-#%%收益率频率
-retn_freq = 3
+#收益率频率
+retn_freq = 5
 future_retn = future_arr[retn_freq:] / future_arr[:-retn_freq] - 1
-#%% 分别计算不同lag长度的MA，源数据频率不变
+#分别计算不同lag长度的MA，源数据频率不变
 import talib
 MA_windows = (3,5,10,15)
 MA_number = len(MA_windows) #有几种MA 的lag
@@ -266,31 +307,39 @@ def arr_rolling_window(arr, window, axis=0):
         arr_rolling = np.lib.stride_tricks.as_strided(arr,shape=shape,strides=strides)
     return arr_rolling
 
-#%%
-# roll_windows =  arr_rolling_window(arr=future_MA_arr,window=3,axis=0)
-
-# beta_list = []
-# for i, window_arr in enumerate(arr_rolling_window(arr=total_arr_f,window=factor_window,axis=0)):
-#     beta_list.append(multi_OLS_beta(window_arr)[1:]) 
- 
-# beta = np.array(beta_list[-4:])
-
-# factor_value = np.dot(np.dot(1/4 * np.ones(4), beta), future_MA_arr[240].T)
-
-#%%
-
 beta_OLS_window = 10
-beta_expectation_window = 5
+beta_expectation_window = 3
 beta_sample_window = beta_OLS_window + beta_expectation_window - 1
 sample_lenth = beta_sample_window + MA_number
-facotr_list = []
+
+factor_list = []
 for t, MA_vector in enumerate(raw_arr_f[240:, 1:]):
     raw_sample = raw_arr_f[240+t-sample_lenth:240+t+1]
     beta_list = []
     for _, window_arr in enumerate(arr_rolling_window(arr=raw_sample,window=beta_OLS_window,axis=0)):
         beta_list.append(multi_OLS_beta(window_arr)[1:])
     beta_arr = np.array(beta_list)
-    factor_value = np.dot(np.dot(1/beta_expectation_window * np.ones(MA_number), beta_arr[-beta_expectation_window:]), MA_vector.T)
+    factor_value =1/beta_expectation_window *  np.dot(np.dot(np.ones(beta_expectation_window), beta_arr[-beta_expectation_window:]), MA_vector.T)
     factor_list.append(factor_value)
-    
+
+# prepare backtest
+sig_and_pre = pd.DataFrame([factor_list,future_retn[240:]],columns=time_list_t).T
+def _one_trade(sig, pre, oritation):
+    if sig > 0:
+        retn = pre
+    elif sig < 0:
+        retn = -pre
+    else:
+        retn = 0
+    if oritation == 'momentum':
+        return retn
+    elif oritation == 'reverse':
+        return -retn
+oritation = 'momentum'  
+# oritation = 'reverse'  
+retn_list = []
+for i, row in sig_and_pre.iterrows():
+    retn_list.append(_one_trade(row[0],row[1],oritation))
+retn = pd.Series(retn_list)
+net_value(retn)
 # %%
