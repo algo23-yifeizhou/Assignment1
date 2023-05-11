@@ -246,7 +246,7 @@ index_data_raw = index_bar_list[167:]
 # future_data_raw = future_bar_list
 # index_data_raw = index_bar_list
 #%% 日内检测，注：部分天OLS存在多重共线性，待解决
-t = 100
+t = 102
 # sig_pre_slicer = 120
 future_data_daily = future_data_raw[t]
 # index_data_daily = index_data_raw[t]
