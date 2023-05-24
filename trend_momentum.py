@@ -10,11 +10,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numba 
 from numba import jit
-import pdb
-import re
-import scipy.stats
-# from scipy.stats import ttest_1samp
-from sys import getsizeof
 import warnings
 import datetime as dt
 import matplotlib 
@@ -246,7 +241,7 @@ index_data_raw = index_bar_list[167:]
 # future_data_raw = future_bar_list
 # index_data_raw = index_bar_list
 #%% 日内检测，注：部分天OLS存在多重共线性，待解决
-t = 102
+t = 100
 # sig_pre_slicer = 120
 future_data_daily = future_data_raw[t]
 # index_data_daily = index_data_raw[t]
@@ -268,7 +263,7 @@ for i, (bar_y, bar_t) in enumerate(zip(future_bars_yesterday, future_bars_daily)
     future_arr[i+240] = bar_t[4]
 
 #收益率频率
-retn_freq = 3
+retn_freq = 5
 future_retn = future_arr[retn_freq:] / future_arr[:-retn_freq] - 1
 #分别计算不同lag长度的MA，源数据频率不变
 import talib
