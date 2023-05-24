@@ -38,6 +38,9 @@ Moving Average window Length: (5, 10, 15, 30)
 Beta OLS Regression Window Length: 30
 Beta Expectation Window Length: 10
 #### Backtesting results (2016-06-01)
+![image](https://github.com/algo23-yifeizhou/Assignment1/assets/125112527/8e882c10-75ff-442d-a833-9009488e71ef)
+#### Backtesting results (2016-01-20)
+![image](https://github.com/algo23-yifeizhou/Assignment1/assets/125112527/e8338234-4afe-404a-8bfd-83ebac55402a)
 
 ### Further works to be done
 1. Then I will extend the one-day intraday strategy to days intraday strategy and try to use the factor in a fixed time zone during an intraday trading period
