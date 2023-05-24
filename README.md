@@ -2,9 +2,8 @@
 
 ### What is it?
 
-This is a research based on
- 
-  "Han, & Kong, L. (2022). A trend factor in commodity futures markets: Any economic gains from using information over investment horizons? The Journal of Futures Markets, 42(5), 803–822. https://doi.org/10.1002/fut.22291"
+This is a research based on<br>
+[Han, & Kong, L. (2022). A trend factor in commodity futures markets: Any economic gains from using information over investment horizons? The Journal of Futures Markets, 42(5), 803–822. ](https://doi.org/10.1002/fut.22291)
 
 
 ### Abstract
