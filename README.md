@@ -12,8 +12,8 @@ In this paper, we provide a trend factor that captures simultaneously all three 
 
 ### Get Started
 This project is based on Python
-1. conda create -n assign3 python=3.7
-2. conda activate assign3 pip install -r requirements.txt
+1. conda create -n assign1 python=3.7
+2. conda activate assign1 pip install -r requirements.txt
 
 ### My efforts and improvement
 The above model used Moving average prices of different lags to construct a trend-following factor, and this factor could capture simultaneously all three asset price trends: the short-term, intermediate-term, and long-term, by exploiting information in moving average prices of various time lengths whose predictive power is justified by a proposed general equilibrium model.
